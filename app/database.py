@@ -9,10 +9,10 @@ load_dotenv()
 
 class Database:
     def __init__(self):
-        self.host = os.getenv("DB_HOST", "mysql.hostinger.com")
-        self.user = os.getenv("DB_USER", "u968537179_monitor_user")
-        self.password = os.getenv("Alticor@123", "")
-        self.database = os.getenv("DB_NAME", "u968537179_empmonitor")
+        self.host = os.getenv("DB_HOST", "ticketing-db.mysql.database.azure.com")
+        self.user = os.getenv("DB_USER", "empmonitor@ticketing-db.mysql.database.azure.com")
+        self.password = os.getenv("DB_PASSWORD", "Alticor#1001")
+        self.database = os.getenv("DB_NAME", "eempmonitor-db")
     
     def get_connection(self):
         return mysql.connector.connect(

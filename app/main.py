@@ -99,7 +99,7 @@ async def upload_screenshot(
 
         cursor.execute(
             """
-            INSERT INTO u968537179_av_tblsnap (user_id, screenshot_data, capture_time)
+            INSERT INTO av_tblsnap (user_id, screenshot_data, capture_time)
             VALUES (%s, %s, %s)
             """,
             (user_email, screenshot_bytes, datetime.now())
@@ -132,7 +132,7 @@ async def start_session(request: SessionRequest):
 
         cursor.execute(
             """
-            INSERT INTO u968537179_tblsession (user_email, start_time, status)
+            INSERT INTO tblsession (user_email, start_time, status)
             VALUES (%s, %s, 'active')
             """,
             (request.user_email, datetime.now())
@@ -160,7 +160,7 @@ async def end_session(session_id: int, request: SessionRequest):
 
         cursor.execute(
             """
-            UPDATE u968537179_tblsession
+            UPDATE tblsession
             SET end_time = %s, status = 'completed'
             WHERE id = %s AND user_email = %s
             """,
@@ -196,7 +196,7 @@ async def get_screenshot(screenshot_id: int):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT screenshot_data FROM u968537179_av_tblsnap WHERE id = %s",
+        "SELECT screenshot_data FROM av_tblsnap WHERE id = %s",
         (screenshot_id,)
     )
 
@@ -230,7 +230,7 @@ async def get_dashboard(email: str = Query(...), start_date: str = Query("2026-0
                SUM(TIME_TO_SEC(
                    IFNULL(TIMEDIFF(COALESCE(s.end_time, NOW()), s.start_time), 0)
                )) as total_seconds
-        FROM u968537179_tblsession s
+        FROM tblsession s
         JOIN av_user u ON s.user_email = u.email
         WHERE u.email = %s AND s.start_time BETWEEN %s AND %s AND s.status IN ('completed', 'active')
         GROUP BY DATE(s.start_time)
@@ -254,7 +254,7 @@ async def get_dashboard_summary(email: str = Query(...)):
         SELECT 
             SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(COALESCE(end_time, NOW()), start_time)))) as total_tracked,
             SUM(TIME_TO_SEC(TIMEDIFF(COALESCE(end_time, NOW()), start_time))) as total_tracked_seconds
-        FROM u968537179_tblsession 
+        FROM tblsession 
         WHERE user_email = %s AND status IN ('completed', 'active')
     """, (email,))
     tracked = cursor.fetchone() or {'total_tracked_seconds': 0}
@@ -264,7 +264,7 @@ async def get_dashboard_summary(email: str = Query(...)):
         SELECT 
             SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time)))) as manual_time,
             SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))) as manual_seconds
-        FROM u968537179_av_manual_logs 
+        FROM av_manual_logs 
         WHERE user_email = %s
     """, (email,))
     manual = cursor.fetchone() or {'manual_seconds': 0}
@@ -276,7 +276,7 @@ async def get_dashboard_summary(email: str = Query(...)):
             SELECT DATE(start_time) as day,
                    MIN(start_time) as first_activity,
                    MAX(COALESCE(end_time, NOW())) as last_activity
-            FROM u968537179_tblsession 
+            FROM tblsession 
             WHERE user_email = %s
             GROUP BY DATE(start_time)
         ) daily_activity
@@ -317,7 +317,7 @@ async def get_screenshots(
         id,
         capture_time AS timestamp,
         screenshot_data
-    FROM u968537179_av_tblsnap
+    FROM av_tblsnap
     WHERE user_id = %s
     AND capture_time BETWEEN %s AND %s
     ORDER BY capture_time DESC
@@ -362,14 +362,14 @@ async def get_daily_timeline(email: str = Query(...), date: str = Query(None)):
                 TIME_FORMAT(s.start_time, '%H:%i') as start_time_fmt,
                 TIME_FORMAT(s.end_time, '%H:%i') as end_time_fmt,
                 TIMESTAMPDIFF(MINUTE, s.start_time, s.end_time) as duration_min
-            FROM u968537179_tblsession s
+            FROM tblsession s
             WHERE s.user_email = %s AND DATE(s.start_time) = %s
             ORDER BY s.start_time
         """, (email, date))
     else:
         cursor.execute("""
             SELECT DISTINCT DATE(start_time) as date
-            FROM u968537179_tblsession 
+            FROM tblsession 
             WHERE user_email = %s 
             ORDER BY date DESC
         """, (email,))
@@ -394,7 +394,7 @@ async def get_manual_logs(email: str = Query(...), start_date: str = Query("2026
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT id, user_email, start_time, end_time, notes, created_at
-        FROM u968537179_av_manual_logs 
+        FROM av_manual_logs 
         WHERE user_email = %s AND DATE(start_time) BETWEEN %s AND %s
         ORDER BY start_time DESC
     """, (email, start_date, end_date))
@@ -408,7 +408,7 @@ async def create_manual_log(log: ManualLogCreate):
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO u968537179_av_manual_logs (user_email, start_time, end_time, notes, created_at)
+        INSERT INTO av_manual_logs (user_email, start_time, end_time, notes, created_at)
         VALUES (%s, %s, %s, %s, NOW())
     """, (log.email, log.start_time, log.end_time, log.notes))
     conn.commit()
@@ -422,7 +422,7 @@ async def update_manual_log(log_id: int, log: ManualLogCreate):
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        UPDATE u968537179_av_manual_logs SET start_time=%s, end_time=%s, notes=%s
+        UPDATE av_manual_logs SET start_time=%s, end_time=%s, notes=%s
         WHERE id=%s AND user_email=%s
     """, (log.start_time, log.end_time, log.notes, log_id, log.email))
     conn.commit()
@@ -434,7 +434,7 @@ async def update_manual_log(log_id: int, log: ManualLogCreate):
 async def delete_manual_log(log_id: int):
     conn = db.get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM u968537179_av_manual_logs WHERE id=%s", (log_id,))
+    cursor.execute("DELETE FROM av_manual_logs WHERE id=%s", (log_id,))
     conn.commit()
     cursor.close()
     conn.close()
